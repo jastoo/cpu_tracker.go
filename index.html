@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>CPU Usage</h1>
+    <canvas id="cpuChart" width="400" height="200"></canvas>
+    <h1>Processes</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>PID</th>
+                <th>Name</th>
+                <th>CPU%</th>
+            </tr>
+        </thead>
+        <tbody id="processTable">
+        </tbody>
+    </table>
+    <script>
+        async function fetchCPUUsage() {
+            const response = await fetch('/cpu');
+            const data = await response.json();
+            return data.cpu;
+        }
+
+        async function fetchProcesses() {
+            const response = await fetch('/processes');
+            const data = await response.json();
+            return data;
+        }
+
+        async function updateCharts() {
+            const cpuUsage = await fetchCPUUsage();
+            cpuChart.data.datasets[0].data.push(cpuUsage);
+            if (cpuChart.data.datasets[0].data.length > 20) {
+                cpuChart.data.datasets[0].data.shift();
+            }
+            cpuChart.update();
+
+            const processes = await fetchProcesses();
+            const processTable = document.getElementById('processTable');
+            processTable.innerHTML = '';
+            processes.forEach(proc => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${proc.pid}</td><td>${proc.name}</td><td>${proc.cpu.toFixed(2)}</td>`;
+                processTable.appendChild(row);
+            });
+        }
+
+        const ctx = document.getElementById('cpuChart').getContext('2d');
+        const cpuChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    fill: false
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        setInterval(updateCharts, 5000);
+        updateCharts();
+    </script>
+</body>
+</html>
